@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="fubo">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#ffffff">
+  <title>fubo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      background: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+    }
+    .app {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      overflow: hidden; position: relative;
+      background: #fff;
+    }
+    .scroll-body {
+      flex: 1; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .scroll-body::-webkit-scrollbar { display: none; }
+
+    /* STATUS BAR */
+    .status-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px 4px; flex-shrink: 0; background: #fff;
+    }
+    .status-time { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+    .status-icons { display: flex; gap: 6px; }
+    .status-dot { width: 16px; height: 8px; border-radius: 2px; background: #1a1a1a; opacity: 0.4; }
+    .status-dot.sig { width: 11px; }
+
+    /* NAV TOP */
+    .nav-top {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 18px 10px; flex-shrink: 0; background: #fff;
+    }
+    .fubo-logo { font-size: 22px; font-weight: 500; color: #1a1a1a; letter-spacing: -0.5px; }
+    .logo-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #C8F000; margin-left: 1px; vertical-align: middle; margin-bottom: 3px; }
+    .nav-icons { display: flex; gap: 12px; }
+    .nav-icon { width: 32px; height: 32px; border-radius: 50%; background: #f2f0eb; display: flex; align-items: center; justify-content: center; }
+    .nav-icon svg { width: 16px; height: 16px; stroke: #888; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* STATE SWITCHER (long-press logo) */
+    .state-switcher {
+      display: none; position: absolute;
+      top: 74px; left: 18px;
+      background: #fff; border-radius: 14px;
+      border: 1px solid #e0ddd8; z-index: 50;
+      overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,0.14);
+    }
+    .state-switcher.open { display: block; }
+    .state-opt { padding: 14px 20px; font-size: 15px; color: #1a1a1a; cursor: pointer; border-bottom: 1px solid #f0ede8; }
+    .state-opt:last-child { border-bottom: none; }
+    .state-opt.active { font-weight: 500; }
+    .state-opt.active::after { content: ' ✓'; }
+
+    /* PILL ROW */
+    .pill-row {
+      display: flex; gap: 6px; padding: 0 18px 12px;
+      overflow-x: auto; scrollbar-width: none; flex-shrink: 0; background: #fff;
+    }
+    .pill-row::-webkit-scrollbar { display: none; }
+    .pill { font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 20px; white-space: nowrap; border: 1px solid #d8d5cf; color: #888; background: transparent; }
+    .pill.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+    /* LIVE HERO */
+    .live-hero-card { margin: 0 16px 14px; border-radius: 18px; border: 1px solid #d8d5cf; background: #fff; overflow: hidden; }
+    .lhc-badges { display: flex; align-items: center; gap: 8px; padding: 14px 16px 0; }
+    .lhc-live-badge { background: #1a1a1a; color: #fff; font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 20px; }
+    .lhc-net-badge { background: #f2f0eb; color: #666; font-size: 12px; padding: 4px 12px; border-radius: 20px; }
+    .lhc-match-area { display: flex; align-items: flex-end; justify-content: center; padding: 18px 16px 4px; }
+    .lhc-team { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 1; }
+    .lhc-emblem { width: 48px; height: 48px; background: #e8e5df; transform: rotate(45deg); border-radius: 7px; flex-shrink: 0; }
+    .lhc-abbr { font-size: 24px; font-weight: 500; color: #1a1a1a; letter-spacing: -0.5px; }
+    .lhc-score { font-size: 46px; font-weight: 500; color: #1a1a1a; line-height: 1; }
+    .lhc-center { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 8px; flex: 0 0 40px; }
+    .lhc-dash { font-size: 30px; color: #bbb; font-weight: 400; line-height: 1; }
+    .lhc-meta { font-size: 13px; color: #999; text-align: center; padding: 8px 16px 14px; }
+    .lhc-divider { height: 1px; background: #f0ede8; margin: 0 16px; }
+    .lhc-poll { padding: 14px 16px; }
+    .lhc-poll-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .lhc-vote-btn { width: 50px; height: 50px; border-radius: 50%; border: 1px solid #d0cec8; background: #f2f0eb; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s, border-color 0.2s; flex-shrink: 0; }
+    .lhc-vote-btn svg { width: 20px; height: 20px; stroke: #999; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .lhc-vote-btn.voted { background: #C8F000; border-color: #C8F000; }
+    .lhc-vote-btn.voted svg { stroke: #1a1a1a; }
+    .lhc-vote-btn.dim { opacity: 0.3; }
+    .lhc-poll-center { flex: 1; text-align: center; }
+    .lhc-poll-q { font-size: 14px; color: #1a1a1a; font-weight: 500; margin-bottom: 4px; }
+    .lhc-poll-voters { font-size: 12px; color: #aaa; }
+
+    .stats-section { padding: 0 16px; }
+    .stats-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .stat-cell { flex: 1; background: #f5f3ef; border-radius: 10px; padding: 10px 8px; text-align: center; }
+    .stat-val { font-size: 15px; font-weight: 500; color: #1a1a1a; }
+    .stat-lbl { font-size: 10px; color: #aaa; margin-top: 3px; }
+
+    .moments-section { padding: 0 16px; }
+    .moments-lbl { font-size: 12px; color: #aaa; margin-bottom: 10px; }
+    .thumb-row { display: flex; gap: 10px; padding-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+    .thumb-row::-webkit-scrollbar { display: none; }
+    .moment-thumb { width: 76px; min-width: 76px; height: 114px; border-radius: 10px; overflow: hidden; position: relative; cursor: pointer; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.06); }
+    .thumb-pitch { position: absolute; inset: 0; opacity: 0.18; }
+    .thumb-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -60%); width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; }
+    .thumb-play svg { width: 10px; height: 10px; fill: #0f1923; margin-left: 2px; }
+    .thumb-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 6px 6px; background: linear-gradient(to top, rgba(0,0,0,0.75), transparent); }
+    .thumb-pill { display: inline-block; font-size: 9px; font-weight: 500; padding: 2px 6px; border-radius: 10px; white-space: nowrap; }
+    .thumb-pill.goal { background: #1D9E75; color: #E1F5EE; }
+    .thumb-pill.save { background: #185FA5; color: #E6F1FB; }
+    .thumb-pill.card { background: #BA7517; color: #FAEEDA; }
+
+    .hero-cta { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 16px; border-top: 1px solid #f0ede8; margin-top: 4px; }
+    .watch-btn { background: #C8F000; color: #1a1a1a; font-size: 13px; font-weight: 500; padding: 9px 20px; border-radius: 10px; border: none; cursor: pointer; font-family: inherit; }
+    .hero-meta-text { font-size: 12px; color: #bbb; }
+
+    /* DAY AHEAD */
+    .day-ahead-card { margin: 0 16px 14px; border-radius: 18px; border: 1px solid #d8d5cf; overflow: hidden; }
+    .day-ahead-top { background: #0a1628; padding: 16px; }
+    .day-badge { background: rgba(185,213,255,0.15); color: #85B7EB; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
+    .day-headline { font-size: 22px; font-weight: 500; color: #fff; line-height: 1.2; margin-bottom: 5px; }
+    .day-sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 12px; }
+    .day-sport-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .day-sport { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55); font-size: 11px; padding: 4px 10px; border-radius: 12px; }
+    .day-cta-row { display: flex; gap: 8px; padding: 12px 16px 14px; background: #0a1628; }
+    .day-btn { flex: 1; padding: 10px; font-size: 13px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: rgba(255,255,255,0.6); cursor: pointer; text-align: center; font-family: inherit; }
+    .day-btn.primary { background: #C8F000; color: #0f1923; border-color: #C8F000; font-weight: 500; }
+
+    .section-head { display: flex; justify-content: space-between; align-items: center; padding: 0 16px 10px; }
+    .section-title { font-size: 14px; font-weight: 500; color: #1a1a1a; }
+    .section-link { font-size: 12px; color: #bbb; }
+
+    .games-scroll { display: flex; gap: 10px; padding: 0 16px 14px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .games-scroll::-webkit-scrollbar { display: none; }
+    .game-card-h { min-width: 156px; max-width: 156px; border-radius: 16px; border: 1px solid #d8d5cf; background: #fff; overflow: hidden; flex-shrink: 0; }
+    .gch-emblems { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 14px 8px; }
+    .gch-emblem { width: 30px; height: 30px; background: #e8e5df; transform: rotate(45deg); border-radius: 4px; }
+    .gch-teams { font-size: 16px; font-weight: 500; color: #1a1a1a; padding: 0 14px 3px; }
+    .gch-time { font-size: 11px; color: #aaa; padding: 0 14px 12px; }
+    .gch-divider { height: 1px; background: #f0ede8; margin: 0 14px; }
+    .gch-poll { padding: 10px 14px 12px; }
+    .gch-poll-q { font-size: 11px; color: #666; text-align: center; margin-bottom: 10px; }
+    .gch-vote-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .gch-vote-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #d0cec8; background: #f2f0eb; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+    .gch-vote-btn svg { width: 16px; height: 16px; stroke: #aaa; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .gch-vote-btn.voted { background: #C8F000; border-color: #C8F000; }
+    .gch-vote-btn.voted svg { stroke: #1a1a1a; }
+    .gch-vote-btn.dim { opacity: 0.3; }
+    .gch-voters { font-size: 11px; color: #bbb; text-align: center; margin-top: 8px; }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      display: flex; border-top: 1px solid #f0ede8;
+      padding: 10px 0 0;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      flex-shrink: 0; background: #fff;
+    }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+    .nav-item svg { width: 22px; height: 22px; stroke: #bbb; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .nav-item.active svg { stroke: #1a1a1a; }
+    .nav-label { font-size: 10px; color: #bbb; }
+    .nav-item.active .nav-label { color: #1a1a1a; font-weight: 500; }
+
+    /* MODAL */
+    .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.55); display: flex; flex-direction: column; justify-content: flex-end; z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.22s ease; }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-sheet { background: #0f1923; border-radius: 22px 22px 0 0; overflow: hidden; transform: translateY(40px); transition: transform 0.25s cubic-bezier(0.34,1.15,0.64,1); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    .modal-overlay.open .modal-sheet { transform: translateY(0); }
+    .modal-drag-handle { display: flex; justify-content: center; padding: 12px 0 4px; cursor: pointer; }
+    .drag-bar { width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.25); }
+    .modal-close-row { display: flex; justify-content: flex-end; padding: 0 16px 8px; }
+    .close-btn { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; }
+    .close-btn svg { width: 13px; height: 13px; stroke: rgba(255,255,255,0.7); fill: none; stroke-width: 2; stroke-linecap: round; }
+    .modal-video { height: 210px; position: relative; display: flex; align-items: center; justify-content: center; }
+    .modal-pitch { position: absolute; inset: 0; opacity: 0.12; }
+    .modal-play { width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; }
+    .modal-play svg { width: 20px; height: 20px; fill: #fff; margin-left: 3px; }
+    .modal-moment-badge { position: absolute; top: 12px; left: 14px; display: flex; align-items: center; gap: 6px; }
+    .modal-badge { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 4px; color: #fff; }
+    .modal-min { font-size: 11px; color: rgba(255,255,255,0.5); }
+    .modal-timebar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.1); }
+    .modal-timefill { height: 100%; background: #C8F000; }
+    .modal-info { padding: 14px 18px 6px; }
+    .modal-title { font-size: 16px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+    .modal-sub { font-size: 12px; color: rgba(255,255,255,0.45); }
+    .modal-desc { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.6; padding: 8px 18px 14px; }
+    .modal-more { padding: 0 18px 6px; }
+    .modal-more-lbl { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 10px; }
+    .modal-more-row { display: flex; gap: 10px; padding-bottom: 14px; overflow-x: auto; scrollbar-width: none; }
+    .modal-more-row::-webkit-scrollbar { display: none; }
+    .mini-thumb { width: 68px; min-width: 68px; height: 102px; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; flex-shrink: 0; opacity: 0.75; }
+    .mini-thumb-bg { position: absolute; inset: 0; }
+    .mini-thumb-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-60%); width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.75); display: flex; align-items: center; justify-content: center; }
+    .mini-thumb-play svg { width: 9px; height: 9px; fill: #0f1923; margin-left: 1px; }
+    .mini-thumb-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 14px 5px 6px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
+    .mini-pill { font-size: 9px; font-weight: 500; padding: 2px 5px; border-radius: 8px; }
+    .mini-pill.goal { background: #1D9E75; color: #E1F5EE; }
+    .mini-pill.save { background: #185FA5; color: #E6F1FB; }
+    .mini-pill.card { background: #BA7517; color: #FAEEDA; }
+    .modal-cta { padding: 2px 18px 14px; }
+    .modal-watch-btn { width: 100%; padding: 12px; background: #C8F000; color: #0f1923; font-size: 14px; font-weight: 500; border-radius: 12px; border: none; cursor: pointer; font-family: inherit; }
+
+    /* HINT */
+    .hint { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.72); color: #fff; font-size: 13px; padding: 9px 18px; border-radius: 22px; white-space: nowrap; pointer-events: none; opacity: 1; transition: opacity 0.6s; z-index: 40; }
+    .hint.hidden { opacity: 0; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="status-bar">
+    <span class="status-time" id="clock">9:41</span>
+    <div class="status-icons"><div class="status-dot sig"></div><div class="status-dot"></div></div>
+  </div>
+
+  <div class="nav-top">
+    <div class="fubo-logo" id="logo-tap">fubo<span class="logo-dot"></span></div>
+    <div class="nav-icons">
+      <div class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
+      <div class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+    </div>
+  </div>
+
+  <div class="state-switcher" id="switcher">
+    <div class="state-opt active" id="opt-live" onclick="setState('live')">Game live now</div>
+    <div class="state-opt" id="opt-between" onclick="setState('between')">No game live</div>
+  </div>
+
+  <div class="pill-row">
+    <div class="pill active">All</div>
+    <div class="pill">My teams</div>
+    <div class="pill">Soccer</div>
+    <div class="pill">NFL</div>
+    <div class="pill">NBA</div>
+  </div>
+
+  <div class="scroll-body" id="scroll-body">
+
+    <div id="state-live">
+      <div class="live-hero-card">
+        <div class="lhc-badges">
+          <span class="lhc-live-badge">Live</span>
+          <span class="lhc-net-badge">ESPN · PL Matchday 28</span>
+        </div>
+        <div class="lhc-match-area">
+          <div class="lhc-team"><div class="lhc-emblem"></div><div class="lhc-abbr">ARS</div><div class="lhc-score">2</div></div>
+          <div class="lhc-center"><div class="lhc-dash">—</div></div>
+          <div class="lhc-team"><div class="lhc-emblem"></div><div class="lhc-abbr">CHE</div><div class="lhc-score">1</div></div>
+        </div>
+        <div class="lhc-meta">67' · 2nd half · Emirates Stadium</div>
+        <div class="lhc-divider"></div>
+        <div class="lhc-poll">
+          <div class="lhc-poll-row">
+            <div class="lhc-vote-btn" id="lhc-btn-ars" onclick="voteLive('ars')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="lhc-poll-center">
+              <div class="lhc-poll-q">Who wins from here?</div>
+              <div class="lhc-poll-voters" id="lhc-voters"></div>
+            </div>
+            <div class="lhc-vote-btn" id="lhc-btn-che" onclick="voteLive('che')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+        </div>
+        <div class="lhc-divider"></div>
+        <div class="stats-section" style="padding-top:12px">
+          <div class="stats-row">
+            <div class="stat-cell"><div class="stat-val">64%</div><div class="stat-lbl">Possession ARS</div></div>
+            <div class="stat-cell"><div class="stat-val">7–4</div><div class="stat-lbl">Shots on target</div></div>
+            <div class="stat-cell"><div class="stat-val">2–1</div><div class="stat-lbl">Yellow cards</div></div>
+          </div>
+        </div>
+        <div class="moments-section">
+          <div class="moments-lbl">Key moments</div>
+          <div class="thumb-row">
+            <div class="moment-thumb" onclick="openModal(0)" style="background:#0f2a1e">
+              <svg class="thumb-pitch" viewBox="0 0 76 114"><rect x="7" y="9" width="62" height="96" fill="none" stroke="white" stroke-width="1"/><line x1="38" y1="9" x2="38" y2="105" stroke="white" stroke-width="0.7"/><circle cx="38" cy="57" r="16" fill="none" stroke="white" stroke-width="0.7"/></svg>
+              <div class="thumb-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+              <div class="thumb-label"><span class="thumb-pill goal">23' Saka goal</span></div>
+            </div>
+            <div class="moment-thumb" onclick="openModal(1)" style="background:#1a1f0f">
+              <svg class="thumb-pitch" viewBox="0 0 76 114"><rect x="7" y="9" width="62" height="96" fill="none" stroke="white" stroke-width="1"/><line x1="38" y1="9" x2="38" y2="105" stroke="white" stroke-width="0.7"/><circle cx="38" cy="57" r="16" fill="none" stroke="white" stroke-width="0.7"/></svg>
+              <div class="thumb-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+              <div class="thumb-label"><span class="thumb-pill goal">51' Havertz goal</span></div>
+            </div>
+            <div class="moment-thumb" onclick="openModal(2)" style="background:#0f1a2a">
+              <svg class="thumb-pitch" viewBox="0 0 76 114"><rect x="7" y="9" width="62" height="96" fill="none" stroke="white" stroke-width="1"/><line x1="38" y1="9" x2="38" y2="105" stroke="white" stroke-width="0.7"/><circle cx="38" cy="57" r="16" fill="none" stroke="white" stroke-width="0.7"/></svg>
+              <div class="thumb-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+              <div class="thumb-label"><span class="thumb-pill save">58' Raya save</span></div>
+            </div>
+            <div class="moment-thumb" onclick="openModal(3)" style="background:#2a1a0a">
+              <svg class="thumb-pitch" viewBox="0 0 76 114"><rect x="7" y="9" width="62" height="96" fill="none" stroke="white" stroke-width="1"/><line x1="38" y1="9" x2="38" y2="105" stroke="white" stroke-width="0.7"/><circle cx="38" cy="57" r="16" fill="none" stroke="white" stroke-width="0.7"/></svg>
+              <div class="thumb-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+              <div class="thumb-label"><span class="thumb-pill card">61' Palmer caution</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-cta">
+          <div class="hero-meta-text">Watching on your TV</div>
+          <button class="watch-btn">Watch here</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="state-between" style="display:none">
+      <div class="day-ahead-card">
+        <div class="day-ahead-top">
+          <div class="day-badge">Today</div>
+          <div class="day-headline">14 games live later today</div>
+          <div class="day-sub">First game starts at 12:00 PM ET</div>
+          <div class="day-sport-pills"><span class="day-sport">Soccer</span><span class="day-sport">NFL</span><span class="day-sport">NBA</span><span class="day-sport">NHL</span></div>
+        </div>
+        <div class="day-cta-row">
+          <button class="day-btn">Set up notifications</button>
+          <button class="day-btn primary">See schedule</button>
+        </div>
+      </div>
+      <div class="section-head"><span class="section-title">Today's games</span><span class="section-link">See all</span></div>
+      <div class="games-scroll">
+        <div class="game-card-h"><div class="gch-emblems"><div class="gch-emblem"></div><div class="gch-emblem"></div></div><div class="gch-teams">ARS — MCI</div><div class="gch-time">3:00 PM · beIN Sports</div><div class="gch-divider"></div><div class="gch-poll"><div class="gch-poll-q">Who wins the game?</div><div class="gch-vote-row"><div class="gch-vote-btn" id="g0-a" onclick="voteGame(0,'a')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="gch-vote-btn" id="g0-b" onclick="voteGame(0,'b')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div><div class="gch-voters" id="g0-voters"></div></div></div>
+        <div class="game-card-h"><div class="gch-emblems"><div class="gch-emblem"></div><div class="gch-emblem"></div></div><div class="gch-teams">DAL — PHI</div><div class="gch-time">8:20 PM · ESPN</div><div class="gch-divider"></div><div class="gch-poll"><div class="gch-poll-q">Who wins the game?</div><div class="gch-vote-row"><div class="gch-vote-btn" id="g1-a" onclick="voteGame(1,'a')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="gch-vote-btn" id="g1-b" onclick="voteGame(1,'b')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div><div class="gch-voters" id="g1-voters"></div></div></div>
+        <div class="game-card-h"><div class="gch-emblems"><div class="gch-emblem"></div><div class="gch-emblem"></div></div><div class="gch-teams">NYK — MIA</div><div class="gch-time">7:30 PM · ESPN</div><div class="gch-divider"></div><div class="gch-poll"><div class="gch-poll-q">Who wins the game?</div><div class="gch-vote-row"><div class="gch-vote-btn" id="g2-a" onclick="voteGame(2,'a')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="gch-vote-btn" id="g2-b" onclick="voteGame(2,'b')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div><div class="gch-voters" id="g2-voters"></div></div></div>
+        <div class="game-card-h"><div class="gch-emblems"><div class="gch-emblem"></div><div class="gch-emblem"></div></div><div class="gch-teams">BOS — TOR</div><div class="gch-time">1:00 PM · NHL Net</div><div class="gch-divider"></div><div class="gch-poll"><div class="gch-poll-q">Who wins the game?</div><div class="gch-vote-row"><div class="gch-vote-btn" id="g3-a" onclick="voteGame(3,'a')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="gch-vote-btn" id="g3-b" onclick="voteGame(3,'b')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div><div class="gch-voters" id="g3-voters"></div></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-nav">
+    <div class="nav-item active"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="nav-label">Home</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg><span class="nav-label">Live TV</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg><span class="nav-label">Sports</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="nav-label">DVR</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="nav-label">Profile</span></div>
+  </div>
+
+  <div class="modal-overlay" id="modal" onclick="handleOverlayClick(event)">
+    <div class="modal-sheet">
+      <div class="modal-drag-handle" onclick="closeModal()"><div class="drag-bar"></div></div>
+      <div class="modal-close-row"><button class="close-btn" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+      <div class="modal-video" id="modal-video">
+        <svg class="modal-pitch" viewBox="0 0 320 210" width="320" height="210"><rect x="20" y="10" width="280" height="190" fill="none" stroke="white" stroke-width="1.2"/><line x1="160" y1="10" x2="160" y2="200" stroke="white" stroke-width="0.8"/><circle cx="160" cy="105" r="40" fill="none" stroke="white" stroke-width="0.8"/><ellipse cx="160" cy="105" rx="4" ry="4" fill="white" opacity="0.5"/><rect x="20" y="75" width="26" height="60" fill="none" stroke="white" stroke-width="0.8"/><rect x="274" y="75" width="26" height="60" fill="none" stroke="white" stroke-width="0.8"/></svg>
+        <div class="modal-play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+        <div class="modal-moment-badge"><span class="modal-badge" id="modal-badge">Goal</span><span class="modal-min" id="modal-min">23'</span></div>
+        <div class="modal-timebar"><div class="modal-timefill" id="modal-timefill" style="width:30%"></div></div>
+      </div>
+      <div class="modal-info"><div class="modal-title" id="modal-title"></div><div class="modal-sub" id="modal-sub"></div></div>
+      <div class="modal-desc" id="modal-desc"></div>
+      <div class="modal-more"><div class="modal-more-lbl">More moments</div><div class="modal-more-row" id="modal-more-row"></div></div>
+      <div class="modal-cta"><button class="modal-watch-btn">Watch live now</button></div>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hold the fubo logo to switch states</div>
+
+</div>
+<script>
+  /* CLOCK */
+  function tick() { var n=new Date(),h=n.getHours()%12||12,m=n.getMinutes().toString().padStart(2,'0'); document.getElementById('clock').textContent=h+':'+m; }
+  tick(); setInterval(tick,10000);
+
+  /* HINT fades after 3.5s */
+  setTimeout(function(){ document.getElementById('hint').classList.add('hidden'); },3500);
+
+  /* LONG-PRESS logo → state switcher */
+  var lpt=null;
+  var logo=document.getElementById('logo-tap');
+  logo.addEventListener('touchstart',function(e){e.preventDefault();lpt=setTimeout(function(){document.getElementById('switcher').classList.add('open');},600);},{passive:false});
+  logo.addEventListener('touchend',function(){clearTimeout(lpt);});
+  logo.addEventListener('mousedown',function(){lpt=setTimeout(function(){document.getElementById('switcher').classList.add('open');},600);});
+  logo.addEventListener('mouseup',function(){clearTimeout(lpt);});
+  document.addEventListener('click',function(e){if(!document.getElementById('switcher').contains(e.target)&&e.target!==logo){document.getElementById('switcher').classList.remove('open');}});
+
+  /* STATE */
+  function setState(s){
+    document.getElementById('state-live').style.display=s==='live'?'block':'none';
+    document.getElementById('state-between').style.display=s==='between'?'block':'none';
+    document.getElementById('opt-live').className='state-opt'+(s==='live'?' active':'');
+    document.getElementById('opt-between').className='state-opt'+(s==='between'?' active':'');
+    document.getElementById('switcher').classList.remove('open');
+    document.getElementById('scroll-body').scrollTop=0;
+    closeModal();
+  }
+
+  /* MOMENTS */
+  var M=[
+    {badge:'Goal',bg2:'#1D9E75',min:"23'",cls:'goal',title:'Saka tucks in from close range',sub:"Arsenal vs Chelsea · 23' · Premier League",desc:'Bukayo Saka latches onto a through ball from Ødegaard and slots past Sánchez with his right foot to open the scoring at the Emirates.',fill:25,bg:'#0f2a1e'},
+    {badge:'Goal',bg2:'#1D9E75',min:"51'",cls:'goal',title:'Havertz heads home the corner',sub:"Arsenal vs Chelsea · 51' · Premier League",desc:"Kai Havertz rises highest at the back post to head home a perfectly delivered corner from Trossard, doubling Arsenal's lead.",fill:52,bg:'#1a1f0f'},
+    {badge:'Save',bg2:'#185FA5',min:"58'",cls:'save',title:'Raya denies Palmer one-on-one',sub:"Arsenal vs Chelsea · 58' · Premier League",desc:"David Raya makes a crucial save with his feet to deny Cole Palmer, keeping Arsenal's two-goal cushion intact.",fill:60,bg:'#0f1a2a'},
+    {badge:'Caution',bg2:'#BA7517',min:"61'",cls:'card',title:'Palmer booked for late challenge',sub:"Arsenal vs Chelsea · 61' · Premier League",desc:'Cole Palmer receives a yellow card for a reckless challenge on Rice in midfield, ruling him out of the next fixture.',fill:65,bg:'#2a1a0a'}
+  ];
+  var TL=["23' Saka goal","51' Havertz goal","58' Raya save","61' Palmer caution"];
+
+  function openModal(i){
+    var d=M[i];
+    document.getElementById('modal-badge').textContent=d.badge;
+    document.getElementById('modal-badge').style.background=d.bg2;
+    document.getElementById('modal-min').textContent=d.min;
+    document.getElementById('modal-title').textContent=d.title;
+    document.getElementById('modal-sub').textContent=d.sub;
+    document.getElementById('modal-desc').textContent=d.desc;
+    document.getElementById('modal-timefill').style.width=d.fill+'%';
+    document.getElementById('modal-video').style.background=d.bg;
+    var row=document.getElementById('modal-more-row');
+    row.innerHTML='';
+    M.forEach(function(m,j){
+      if(j===i)return;
+      var div=document.createElement('div');
+      div.className='mini-thumb'; div.style.background=m.bg;
+      div.onclick=function(){openModal(j);};
+      div.innerHTML='<div class="mini-thumb-bg" style="background:'+m.bg+'"><svg viewBox="0 0 68 102" width="68" height="102" style="position:absolute;inset:0;opacity:0.18"><rect x="6" y="8" width="56" height="86" fill="none" stroke="white" stroke-width="1"/><line x1="34" y1="8" x2="34" y2="94" stroke="white" stroke-width="0.7"/><circle cx="34" cy="51" r="14" fill="none" stroke="white" stroke-width="0.7"/></svg></div><div class="mini-thumb-play"><svg viewBox="0 0 24 24" width="9" height="9"><polygon points="5 3 19 12 5 21 5 3"/></svg></div><div class="mini-thumb-label"><span class="mini-pill '+m.cls+'">'+TL[j]+'</span></div>';
+      row.appendChild(div);
+    });
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal(){document.getElementById('modal').classList.remove('open');}
+  function handleOverlayClick(e){if(e.target===document.getElementById('modal'))closeModal();}
+
+  /* POLLS */
+  var lv=null;
+  function voteLive(t){if(lv)return;lv=t;var a=document.getElementById('lhc-btn-ars'),b=document.getElementById('lhc-btn-che');if(t==='ars'){a.classList.add('voted');b.classList.add('dim');}else{b.classList.add('voted');a.classList.add('dim');}document.getElementById('lhc-voters').textContent='2,844 fans voted';}
+  var gv=[null,null,null,null],gc=[2843,1204,847,2391];
+  function voteGame(i,s){if(gv[i])return;gv[i]=s;var a=document.getElementById('g'+i+'-a'),b=document.getElementById('g'+i+'-b');if(s==='a'){a.classList.add('voted');b.classList.add('dim');}else{b.classList.add('voted');a.classList.add('dim');}document.getElementById('g'+i+'-voters').textContent=(gc[i]+1).toLocaleString()+' fans voted';}
+</script>
+</body>
+</html>
